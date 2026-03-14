@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register | CineWave</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="auth-container glass animate">
+        <h2 style="text-align: center; margin-bottom: 2rem; font-size: 2rem;">Join CineWave</h2>
+        <form id="registerForm">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="regName" placeholder="Enter your name" required>
+            </div>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="regEmail" placeholder="example@wave.com" required>
+            </div>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="regUser" placeholder="Choose a username" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="regPass" placeholder="Create a password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%; padding: 1rem; margin-top: 1rem;">Create Account</button>
+            <p style="text-align: center; margin-top: 1.5rem; color: var(--text-muted); font-size: 0.9rem;">Already have an account? <a href="login.html" style="color: var(--primary); text-decoration: none;">Login</a></p>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').onsubmit = async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const username = document.getElementById('regUser').value.trim().toLowerCase();
+            const password = document.getElementById('regPass').value;
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.textContent = 'Creating Account...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/users/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name, email, username, password })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    alert(data.error || 'Registration failed.');
+                    btn.textContent = 'Create Account';
+                    btn.disabled = false;
+                    return;
+                }
+                alert('Registration Successful! You can now log in.');
+                location.href = 'login.html';
+            } catch(err) {
+                alert('Could not connect to server. Make sure the backend is running.');
+                btn.textContent = 'Create Account';
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>

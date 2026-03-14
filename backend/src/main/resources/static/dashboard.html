@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | CineWave</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div class="logo">CINEWAVE</div>
+            <nav>
+                <ul>
+                    <li><a href="#" onclick="showSection('movies')">Movies</a></li>
+                    <li><a href="#" onclick="showSection('myBookings')">My Bookings</a></li>
+                </ul>
+            </nav>
+            <div class="user-info" style="display: flex; align-items: center; gap: 1rem;">
+                <span style="color: var(--text-muted);">Welcome, <span id="userName" style="color: var(--text-main); font-weight: 600;">User</span></span>
+                <button class="btn glass" onclick="logout()" style="padding: 0.5rem 1rem; font-size: 0.8rem; border: 1px solid var(--glass-border); color: white;">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Movies Section -->
+        <section id="moviesSect" class="dash-section animate" style="margin-top: 4rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2 style="font-size: 2rem;">Now Showing</h2>
+                <input type="text" id="movieSearch" placeholder="Search movies..." style="padding: 0.8rem 1.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 30px; color: white; width: 300px;">
+            </div>
+            <div class="movie-grid" id="movieGrid"></div>
+        </section>
+
+
+        <!-- My Bookings Section -->
+        <section id="myBookingsSect" class="dash-section animate" style="margin-top: 4rem; display: none;">
+            <h2 style="font-size: 2rem; margin-bottom: 2rem;">My Bookings</h2>
+            <div id="bookingsList" class="bookings-container" style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <!-- User's bookings will load here -->
+            </div>
+        </section>
+    </main>
+
+    <script>
+        function showSection(sect) {
+            document.querySelectorAll('.dash-section').forEach(s => s.style.display = 'none');
+            document.getElementById(sect + 'Sect').style.display = 'block';
+            if (sect === 'myBookings') renderUserBookings();
+        }
+
+        // Login Protection
+        if (!localStorage.getItem('role')) {
+            location.href = 'index.html';
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.href = 'index.html';
+        }
+
+        let movies = [];
+        let theaters = [];
+        let bookings = [];
+        let theaterMovieMap = {};
+
+        async function init() {
+            await fetchMovies();
+            await fetchTheaters();
+            await fetchBookings();
+            initializeTheaterMapping();
+            renderMovies();
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const view = urlParams.get('view');
+            if (view === 'bookings') showSection('myBookings');
+            else showSection('movies');
+        }
+
+        async function fetchMovies() {
+            try {
+                const res = await fetch('http://localhost:8080/api/movies');
+                movies = await res.json();
+            } catch(e) { console.error("Could not fetch movies", e); }
+        }
+
+        async function fetchTheaters() {
+            try {
+                const res = await fetch('http://localhost:8080/api/theaters');
+                theaters = await res.json();
+            } catch(e) { console.error("Could not fetch theaters", e); }
+        }
+
+        async function fetchBookings() {
+            try {
+                const res = await fetch('http://localhost:8080/api/bookings');
+                bookings = await res.json();
+                if (document.getElementById('myBookingsSect').style.display !== 'none') {
+                    renderUserBookings();
+                }
+            } catch(e) { console.error("Could not fetch bookings", e); }
+        }
+
+        function initializeTheaterMapping() {
+            // Simplified mapping: just map the first few movies to the first few theaters for now
+            // In a real app, this mapping would be saved in the database
+            theaters.forEach((t, i) => {
+                if(movies.length > 0) {
+                    theaterMovieMap[t.id] = [movies[i % movies.length].id, movies[(i + 1) % movies.length]?.id].filter(Boolean);
+                }
+                // Save mapping locally just to keep the logic stable during demo
+            });
+            localStorage.setItem('theaterMovieMap', JSON.stringify(theaterMovieMap));
+        }
+
+        function renderMovies(filter = '') {
+            const grid = document.getElementById('movieGrid');
+            grid.innerHTML = '';
+            movies.filter(m => m.title.toLowerCase().includes(filter.toLowerCase())).forEach(movie => {
+                const price = movie.duration || 0; // Using duration for price mapping 
+                const time = movie.description || '7:30 PM';
+                const card = document.createElement('div');
+                card.className = 'movie-card glass animate';
+                card.innerHTML = `
+                    <img src="${movie.posterUrl}" alt="${movie.title}" onerror="this.src='https://via.placeholder.com/300x450';">
+                    <div class="movie-info">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span class="movie-tag">${movie.genre || 'Action'}</span>
+                            <span style="font-size: 0.75rem; color: var(--secondary); font-weight: 700;">${time}</span>
+                        </div>
+                        <h3>${movie.title}</h3>
+                        <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600;">₹${price.toFixed(2)}</span>
+                            <button class="btn btn-primary" style="padding: 0.5rem 1rem; border-radius: 8px;" onclick="location.href='booking.html?movie=${movie.id}'">Book Now</button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderUserBookings() {
+            const list = document.getElementById('bookingsList');
+            const currentUser = localStorage.getItem('userName') || 'User'; // Keep username in localStorage for auth mock
+            const userBookings = bookings.filter(b => b.user === currentUser);
+
+            if (userBookings.length === 0) {
+                list.innerHTML = `<div class="glass" style="padding: 4rem; text-align: center; color: var(--text-muted);">
+                    <p style="font-size: 1.2rem; margin-bottom: 1rem;">No tickets have been booked yet.</p>
+                    <button class="btn btn-primary" onclick="showSection('movies')">Explore Movies</button>
+                </div>`;
+                return;
+            }
+
+            list.innerHTML = userBookings.map(b => {
+                let timerHtml = '';
+                let statusClass = '';
+                
+                if (b.type === 'partial') {
+                    const deadline = getDeadline(b.showTime);
+                    const now = new Date();
+                    const diff = deadline - now;
+                    
+                    if (diff > 0) {
+                        const mins = Math.floor(diff / 60000);
+                        const secs = Math.floor((diff % 60000) / 1000);
+                        timerHtml = `<p style="font-size: 0.8rem; color: var(--secondary); margin-top: 0.5rem; font-weight: 700;">🕒 Collect in: ${mins}m ${secs}s</p>`;
+                    } else {
+                        timerHtml = `<p style="font-size: 0.8rem; color: var(--danger); margin-top: 0.5rem; font-weight: 700;">⚠️ EXPIRED - Seats Released</p>`;
+                        statusClass = 'expired';
+                    }
+                }
+
+                return `
+                <div class="glass ${statusClass}" style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; position: relative; ${statusClass === 'expired' ? 'opacity: 0.6; pointer-events: none;' : ''}">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 0.8rem;">
+                            <h3 style="color: var(--primary); margin: 0;">${b.movie}</h3>
+                            <span style="font-size: 0.7rem; color: var(--text-muted); padding: 0.2rem 0.5rem; border: 1px solid var(--glass-border); border-radius: 4px;">${b.showTime}</span>
+                        </div>
+                        <p style="font-size: 0.9rem; color: var(--text-muted); margin-top: 0.5rem;">Type: <strong style="color: white; text-transform: capitalize;">${b.type}</strong></p>
+                    </div>
+                    <div style="text-align: right;">
+                        <p style="font-weight: 600; margin: 0;">Total: ₹${b.total.toFixed(2)}</p>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.2rem 0;">Paid: ₹${b.paid.toFixed(2)}</p>
+                        ${b.total - b.paid > 0 && statusClass !== 'expired' ? `<p style="font-size: 0.8rem; color: var(--secondary); font-weight: 700; margin: 0;">Remaining: ₹${(b.total - b.paid).toFixed(2)}</p>` : ''}
+                        ${timerHtml}
+                    </div>
+                </div>
+            `;}).join('');
+        }
+
+        function getDeadline(showTimeStr) {
+            if (!showTimeStr) return new Date(0);
+            try {
+                const now = new Date();
+                const [time, modifier] = showTimeStr.split(' ');
+                if (!time || !modifier) return new Date(now.getTime() + 24 * 60 * 60 * 1000); // Default to future
+                
+                let [hours, minutes] = time.split(':').map(Number);
+                if (modifier === 'PM' && hours < 12) hours += 12;
+                if (modifier === 'AM' && hours === 12) hours = 0;
+                
+                const deadline = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+                deadline.setMinutes(deadline.getMinutes() - 30); // Note: server actually uses a 30min delay for partial bookings (set in Service)
+                return deadline;
+            } catch (e) {
+                console.error("Time parsing error:", e);
+                return new Date(0);
+            }
+        }
+
+        setInterval(fetchBookings, 30000); // UI Refresh and fetch
+        setInterval(() => {
+            if (document.getElementById('myBookingsSect').style.display !== 'none') {
+                renderUserBookings(); // Tick down timer
+            }
+        }, 1000); 
+
+        document.getElementById('movieSearch').oninput = (e) => renderMovies(e.target.value);
+        document.getElementById('userName').innerText = localStorage.getItem('userName') || 'User';
+
+        init();
+    </script>
+</body>
+</html>

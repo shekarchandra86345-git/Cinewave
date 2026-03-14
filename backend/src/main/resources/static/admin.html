@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel | CineWave</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem; }
+        .admin-card { padding: 2rem; }
+        .form-group { margin-bottom: 1.2rem; }
+        label { display: block; margin-bottom: 0.4rem; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        input, select { width: 100%; padding: 0.8rem 1rem; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: white; outline: none; font-size: 0.9rem; transition: 0.3s; box-sizing: border-box; }
+        input:focus { border-color: var(--primary); background: rgba(255,255,255,0.1); }
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem; background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border); border-radius: 10px; margin-bottom: 0.8rem; }
+        .poster-prev { width: 45px; height: 60px; border-radius: 6px; object-fit: cover; }
+        .tabs { display: flex; gap: 1rem; margin-bottom: 2rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1rem; }
+        .tab { padding: 0.6rem 1.5rem; border-radius: 8px; cursor: pointer; color: var(--text-muted); font-weight: 600; transition: 0.3s; }
+        .tab.active { background: rgba(139,92,246,0.2); color: var(--primary); border: 1px solid var(--glass-border); }
+        .badge { padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+        .badge.full { background: rgba(16,185,129,0.2); color: #10b981; }
+        .badge.partial { background: rgba(245,158,11,0.2); color: #f59e0b; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.9rem 1rem; text-align: left; border-bottom: 1px solid var(--glass-border); font-size: 0.85rem; }
+        th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        #cancelEditBtn { display: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div class="logo" style="color: var(--secondary);">CINEWAVE ADMIN</div>
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <span style="color: var(--text-muted); font-size: 0.85rem;">Logged in as <strong style="color: var(--secondary);">Administrator</strong></span>
+                <button class="btn glass" onclick="logout()" style="padding: 0.5rem 1rem; font-size: 0.8rem; border: 1px solid var(--glass-border); color: white;">Logout</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container" style="max-width: 1200px; margin-top: 6rem;">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('movies')">🎬 Movies</div>
+            <div class="tab" onclick="switchTab('theaters')">🏛️ Theaters</div>
+            <div class="tab" onclick="switchTab('bookings')">📋 Bookings</div>
+            <div class="tab" onclick="switchTab('users')">👤 Users</div>
+        </div>
+
+        <!-- Movies Tab -->
+        <div id="moviesTab">
+            <div class="admin-grid">
+                <div class="glass admin-card animate">
+                    <h3 id="movieFormTitle" style="margin-bottom: 1.5rem; color: var(--primary);">Add New Movie</h3>
+                    <input type="hidden" id="editingId">
+                    <div class="form-group">
+                        <label>Movie Title</label>
+                        <input type="text" id="mTitle" placeholder="e.g. Dune: Part Two">
+                    </div>
+                    <div class="form-group">
+                        <label>Genre / Tag</label>
+                        <input type="text" id="mTag" placeholder="e.g. Sci-Fi / Action">
+                    </div>
+                    <div class="form-group">
+                        <label>Poster URL</label>
+                        <input type="text" id="mPoster" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Base Ticket Price (₹)</label>
+                        <input type="number" id="mPrice" placeholder="e.g. 250">
+                    </div>
+                    <div class="form-group">
+                        <label>Show Time</label>
+                        <input type="text" id="mTime" placeholder="e.g. 7:30 PM">
+                    </div>
+                    <div style="display: flex; gap: 0.8rem; margin-top: 1.5rem;">
+                        <button id="saveMovieBtn" class="btn btn-primary" onclick="saveMovie()" style="flex: 1; padding: 0.8rem;">Add Movie</button>
+                        <button id="cancelEditBtn" class="btn glass" onclick="resetMovieForm()" style="padding: 0.8rem 1.2rem; border: 1px solid var(--glass-border); color: var(--text-muted);">Cancel</button>
+                    </div>
+                </div>
+                <div class="glass admin-card animate">
+                    <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Current Movies</h3>
+                    <div id="adminMovieList"><p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading...</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Theaters Tab -->
+        <div id="theatersTab" style="display:none;">
+            <div class="admin-grid">
+                <div class="glass admin-card animate">
+                    <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Add New Theater</h3>
+                    <div class="form-group">
+                        <label>Theater Name</label>
+                        <input type="text" id="tName" placeholder="e.g. Grand Cinema">
+                    </div>
+                    <div class="form-group">
+                        <label>Location / City</label>
+                        <input type="text" id="tLocation" placeholder="e.g. Downtown, Mumbai">
+                    </div>
+                    <div class="form-group">
+                        <label>Seat Capacity</label>
+                        <input type="number" id="tCapacity" placeholder="e.g. 150">
+                    </div>
+                    <button class="btn btn-primary" onclick="addTheater()" style="width: 100%; padding: 0.8rem; margin-top: 1rem;">Add Theater</button>
+                </div>
+                <div class="glass admin-card animate">
+                    <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Current Theaters</h3>
+                    <div id="adminTheaterList"><p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading...</p></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bookings Tab -->
+        <div id="bookingsTab" style="display:none;">
+            <div class="glass admin-card animate">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                    <h3 style="color: var(--primary);">All Bookings</h3>
+                    <button class="btn glass" onclick="fetchBookings()" style="font-size: 0.8rem; border: 1px solid var(--glass-border); color: var(--primary);">↻ Refresh</button>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Movie</th>
+                            <th>Total</th>
+                            <th>Paid</th>
+                            <th>Seats</th>
+                            <th>Type</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bookingTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="usersTab" style="display:none;">
+            <div class="glass admin-card animate">
+                <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Registered Users</h3>
+                <div id="usersList"><p style="color: var(--text-muted); text-align: center; padding: 2rem;">Loading...</p></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        if (localStorage.getItem('role') !== 'admin') {
+            location.href = 'admin_login.html';
+        }
+
+        function logout() {
+            localStorage.clear();
+            location.href = 'admin_login.html';
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('[id$="Tab"]').forEach(t => t.style.display = 'none');
+            document.getElementById(tab + 'Tab').style.display = 'block';
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            if (tab === 'bookings') fetchBookings();
+            if (tab === 'users') fetchUsers();
+        }
+
+        let movies = [];
+        let theaters = [];
+        let bookings = [];
+
+        async function init() {
+            await fetchMovies();
+            await fetchTheaters();
+        }
+
+        async function fetchMovies() {
+            try {
+                const res = await fetch('/api/movies');
+                movies = await res.json();
+                renderMovies();
+            } catch (err) { console.error("Could not fetch movies", err); }
+        }
+
+        async function fetchTheaters() {
+            try {
+                const res = await fetch('/api/theaters');
+                theaters = await res.json();
+                renderTheaters();
+            } catch (err) { console.error("Could not fetch theaters", err); }
+        }
+
+        async function fetchBookings() {
+            try {
+                const res = await fetch('/api/bookings');
+                bookings = await res.json();
+                renderBookings();
+            } catch (err) { console.error("Could not fetch bookings", err); }
+        }
+
+        async function fetchUsers() {
+            try {
+                const res = await fetch('/api/users');
+                const users = await res.json();
+                renderUsers(users);
+            } catch (err) { console.error("Could not fetch users", err); }
+        }
+
+        async function saveMovie() {
+            const id = document.getElementById('editingId').value;
+            const title = document.getElementById('mTitle').value.trim();
+            const genre = document.getElementById('mTag').value.trim();
+            const posterUrl = document.getElementById('mPoster').value.trim();
+            const price = parseFloat(document.getElementById('mPrice').value);
+            const showTime = document.getElementById('mTime').value.trim();
+
+            if (!title || !posterUrl || isNaN(price) || !showTime) {
+                alert('Please fill all fields.');
+                return;
+            }
+
+            const movieData = {
+                title: title,
+                genre: genre,
+                posterUrl: posterUrl,
+                duration: price,
+                description: showTime
+            };
+
+            try {
+                if (id) {
+                    await fetch(`/api/movies/${id}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(movieData)
+                    });
+                    alert('Movie Updated!');
+                } else {
+                    await fetch('/api/movies', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(movieData)
+                    });
+                    alert('Movie Added Successfully!');
+                }
+                resetMovieForm();
+                await fetchMovies();
+            } catch (err) {
+                alert('Failed to save movie. Is the backend running?');
+            }
+        }
+
+        async function deleteMovie(id) {
+            if (!confirm('Delete this movie?')) return;
+            try {
+                await fetch(`/api/movies/${id}`, { method: 'DELETE' });
+                await fetchMovies();
+            } catch(e) { alert('Failed to delete movie'); }
+        }
+
+        async function addTheater() {
+            const name = document.getElementById('tName').value.trim();
+            const location = document.getElementById('tLocation').value.trim();
+            const capacity = document.getElementById('tCapacity').value.trim();
+            if (!name || !location) { alert('Please fill in theater name and location.'); return; }
+            try {
+                await fetch('/api/theaters', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name: name, location: location + (capacity ? ' | Seats: ' + capacity : '') })
+                });
+                alert('Theater added!');
+                document.getElementById('tName').value = '';
+                document.getElementById('tLocation').value = '';
+                document.getElementById('tCapacity').value = '';
+                await fetchTheaters();
+            } catch(e) { alert('Failed to add theater'); }
+        }
+
+        async function deleteTheater(id) {
+            if (!confirm('Delete this theater?')) return;
+            try {
+                await fetch(`/api/theaters/${id}`, { method: 'DELETE' });
+                await fetchTheaters();
+            } catch(e) { alert('Failed to delete theater'); }
+        }
+
+        async function cancelBooking(id) {
+            if (!confirm('Cancel this booking? Seats will be freed.')) return;
+            try {
+                await fetch(`/api/bookings/${id}`, { method: 'DELETE' });
+                await fetchBookings();
+            } catch(e) { alert('Failed to cancel booking'); }
+        }
+
+        function renderMovies() {
+            const list = document.getElementById('adminMovieList');
+            if (!movies.length) { list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No movies added yet.</p>'; return; }
+            list.innerHTML = '';
+            movies.forEach(m => {
+                const price = m.duration || 0;
+                const time = m.description || '';
+                list.innerHTML += `
+                    <div class="list-item">
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <img src="${m.posterUrl}" class="poster-prev" onerror="this.src='https://via.placeholder.com/45x60'">
+                            <div>
+                                <span style="font-weight: 600; display: block;">${m.title}</span>
+                                <span style="font-size: 0.8rem; color: var(--text-muted);">${time} • ₹${price.toFixed(2)}</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                             <button class="btn glass" onclick="editMovie(${m.id})" style="font-size: 0.7rem; border: 1px solid var(--glass-border); color: var(--primary); padding: 0.4rem 0.8rem;">Edit</button>
+                             <button class="btn glass" onclick="deleteMovie(${m.id})" style="font-size: 0.7rem; border: 1px solid var(--glass-border); color: var(--danger); padding: 0.4rem 0.8rem;">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function editMovie(id) {
+            const m = movies.find(movie => movie.id == id);
+            if (!m) return;
+            document.getElementById('movieFormTitle').innerText = 'Edit Movie';
+            document.getElementById('editingId').value = m.id;
+            document.getElementById('mTitle').value = m.title;
+            document.getElementById('mTag').value = m.genre || '';
+            document.getElementById('mPoster').value = m.posterUrl;
+            document.getElementById('mPrice').value = m.duration;
+            document.getElementById('mTime').value = m.description || '';
+            document.getElementById('saveMovieBtn').innerText = 'Update Movie';
+            document.getElementById('cancelEditBtn').style.display = 'inline-block';
+            document.querySelector('#moviesTab').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetMovieForm() {
+            document.getElementById('movieFormTitle').innerText = 'Add New Movie';
+            document.getElementById('editingId').value = '';
+            document.getElementById('mTitle').value = '';
+            document.getElementById('mTag').value = '';
+            document.getElementById('mPoster').value = '';
+            document.getElementById('mPrice').value = '';
+            document.getElementById('mTime').value = '';
+            document.getElementById('saveMovieBtn').innerText = 'Add Movie';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+        }
+
+        function renderTheaters() {
+            const list = document.getElementById('adminTheaterList');
+            if (!theaters.length) { list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No theaters added yet.</p>'; return; }
+            list.innerHTML = '';
+            theaters.forEach(t => {
+                list.innerHTML += `
+                    <div class="list-item">
+                        <div>
+                            <span style="font-weight: 600; color: var(--primary); display:block;">${t.name}</span>
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">${t.location}</span>
+                        </div>
+                        <button class="btn glass" onclick="deleteTheater(${t.id})" style="font-size: 0.7rem; border: 1px solid var(--glass-border); color: var(--danger); padding: 0.4rem 0.8rem;">Delete</button>
+                    </div>
+                `;
+            });
+        }
+
+        function renderBookings() {
+            const tbody = document.getElementById('bookingTableBody');
+            if (!bookings.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted); padding: 2rem;">No bookings found.</td></tr>'; return; }
+            tbody.innerHTML = '';
+            bookings.forEach(b => {
+                const statusClass = b.type === 'full' ? 'full' : 'partial';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${b.user}</td>
+                        <td style="font-weight: 600;">${b.movie}</td>
+                        <td>₹${(b.total || 0).toFixed(2)}</td>
+                        <td>₹${(b.paid || 0).toFixed(2)}</td>
+                        <td style="font-size: 0.8rem;">${(b.seats || []).join(', ')}</td>
+                        <td><span class="badge ${statusClass}">${b.type || 'full'}</span></td>
+                        <td>
+                            <button class="btn glass" onclick="cancelBooking(${b.id})" style="font-size: 0.7rem; color: var(--danger); border: 1px solid var(--danger); padding: 0.4rem 0.8rem;">Cancel</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderUsers(users) {
+            const list = document.getElementById('usersList');
+            if (!users.length) { list.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 2rem;">No registered users.</p>'; return; }
+            list.innerHTML = `
+                <table>
+                    <thead><tr><th>ID</th><th>Username</th><th>Email</th><th>Role</th><th>Registered</th></tr></thead>
+                    <tbody>
+                        ${users.map(u => `
+                            <tr>
+                                <td>${u.id}</td>
+                                <td style="font-weight:600;">${u.username}</td>
+                                <td style="color:var(--text-muted);">${u.email}</td>
+                                <td><span class="badge ${u.role === 'ADMIN' ? 'full' : 'partial'}">${u.role}</span></td>
+                                <td style="font-size:0.8rem;color:var(--text-muted);">${u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        setInterval(fetchMovies, 60000);
+        init();
+    </script>
+</body>
+</html>

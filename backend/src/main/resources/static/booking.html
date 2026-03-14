@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Tickets | CineWave</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .booking-container { display: flex; gap: 3rem; margin-top: 4rem; }
+        .seat-map { flex: 2; background: var(--bg-card); padding: 3rem; border-radius: 30px; text-align: center; }
+        .booking-summary { flex: 1; padding: 2rem; }
+        .payment-options { margin-top: 2rem; display: flex; flex-direction: column; gap: 1rem; }
+        .option-card { padding: 1.5rem; border-radius: 15px; border: 1px solid var(--glass-border); cursor: pointer; transition: 0.3s; }
+        .option-card:hover { border-color: var(--primary); background: var(--glass); }
+        .option-card.active { border-color: var(--primary); background: rgba(99, 102, 241, 0.1); }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div class="logo" style="cursor: pointer;" onclick="location.href='dashboard.html'">CINEWAVE</div>
+            <nav>
+                <ul>
+                    <li><a href="dashboard.html">Home</a></li>
+                    <li><a href="dashboard.html?view=movies">Movies</a></li>
+                    <li><a href="dashboard.html?view=theaters">Theaters</a></li>
+                    <li><a href="dashboard.html?view=bookings">My Bookings</a></li>
+                </ul>
+            </nav>
+            <div class="user-profile" id="userProfile" style="color: var(--text-muted); cursor: pointer;" onclick="location.href='dashboard.html?view=bookings'">Hello, Guest!</div>
+        </div>
+    </header>
+
+    <script>
+        // Session Guard
+        if (localStorage.getItem('role') !== 'user') {
+            alert('Please login to continue.');
+            location.href = 'index.html';
+        }
+    </script>
+
+    <main class="container">
+        <!-- Selection Overlays - Full Page View -->
+        <div id="selectionOverlay" class="glass animate" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1000; padding: 6rem 10%; overflow-y: auto; background: var(--bg-main); border-radius: 0;">
+            <div style="position: sticky; top: -6rem; background: var(--bg-main); padding: 2rem 0; z-index: 10; margin-bottom: 3rem; border-bottom: 1px solid var(--glass-border);">
+                <div style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto; width: 100%;">
+                    <h1 id="selectionTitle" style="margin: 0; font-size: 2.5rem;">Select to Continue</h1>
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <input type="text" id="theaterSearch" placeholder="Search theaters..." style="padding: 0.8rem 1.5rem; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 30px; color: white; width: 350px; display: none;">
+                        <button class="btn glass" onclick="location.href='dashboard.html'" style="padding: 0.8rem 1.5rem; border-radius: 30px; border: 1px solid var(--glass-border); color: white;">Cancel</button>
+                    </div>
+                </div>
+            </div>
+            <div id="selectionGrid" style="max-width: 1200px; margin: 0 auto; width: 100%;"></div>
+        </div>
+        <div id="overlayBg" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-main); z-index: 999;"></div>
+
+        <div class="booking-container animate" id="mainBookingArea" style="opacity: 0; pointer-events: none;">
+            <!-- Seat map and summary -->
+            <div class="seat-map glass">
+                <div class="seat-map-header">
+                    <div class="screen-visual"></div>
+                    <div class="screen-label">Screen This Way</div>
+                </div>
+                
+                <div class="seats-grid" id="seatsGrid">
+                    <!-- Generation of seats -->
+                </div>
+
+                <div style="margin-top: 3rem; display: flex; justify-content: center; gap: 2rem; color: var(--text-muted); font-size: 0.9rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem;"><div class="seat" style="background: var(--glass);"></div> Available</div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;"><div class="seat" style="background: var(--primary); border-color: var(--primary);"></div> Selected</div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;"><div class="seat" style="background: #1e293b; opacity: 0.2;"></div> Booked</div>
+                </div>
+            </div>
+
+            <div class="booking-summary glass">
+                <h2 style="margin-bottom: 1rem;">Booking Details</h2>
+                <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 2rem;">
+                    <img id="movieImg" src="" style="width: 80px; height: 110px; border-radius: 10px; object-fit: cover;">
+                    <div>
+                        <h3 id="movieTitleDisplay" style="font-size: 1.1rem;">Loading...</h3>
+                        <p id="theaterDisplay" style="color: var(--text-muted); font-size: 0.9rem;">Hall Loading...</p>
+                    </div>
+                </div>
+                
+                <div style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                    <p style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">Selected Seats: <span id="seatCount">0</span></p>
+                    <p style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">Unit Price: <span id="unitPriceDisplay">₹0.00</span></p>
+                    <h3 style="display: flex; justify-content: space-between; margin-top: 1rem;">Total: <span id="totalPrice">₹0.00</span></h3>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 1rem; margin-top: 2rem;">
+                    <button class="btn btn-primary" style="width: 100%; padding: 1rem;" onclick="processPayment('full')">Pay Full Amount</button>
+                    <button class="btn glass" style="width: 100%; border: 1px solid var(--secondary); color: var(--secondary); padding: 1rem;" onclick="processPayment('partial')">Freeze Seats (25% Advance)</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const grid = document.getElementById('seatsGrid');
+        const seatCountDisplay = document.getElementById('seatCount');
+        const totalPriceDisplay = document.getElementById('totalPrice');
+        const unitPriceDisplay = document.getElementById('unitPriceDisplay');
+        let movies = [];
+        let theaters = [];
+        let theaterMovieMap = JSON.parse(localStorage.getItem('theaterMovieMap')) || {};
+        let bookedSeatsMap = {}; // We will fetch this from bookings
+
+        let currentMovie = null;
+        let currentTheater = null;
+        let pricePerSeat = 0;
+        let selectedSeats = 0;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        let urlMovieId = urlParams.get('movie');
+        let urlTheaterId = urlParams.get('theater');
+
+        async function init() {
+            await fetchMovies();
+            await fetchTheaters();
+            await fetchBookingsMap();
+            routeSelection();
+        }
+
+        async function fetchMovies() {
+            try {
+                const res = await fetch('http://localhost:8080/api/movies');
+                movies = await res.json();
+            } catch(e) { console.error("Could not fetch movies", e); }
+        }
+
+        async function fetchTheaters() {
+            try {
+                const res = await fetch('http://localhost:8080/api/theaters');
+                theaters = await res.json();
+            } catch(e) { console.error("Could not fetch theaters", e); }
+        }
+
+        async function fetchBookingsMap() {
+            try {
+                const res = await fetch('http://localhost:8080/api/bookings');
+                const bookings = await res.json();
+                
+                // Reconstruct bookedSeatsMap from backend data
+                bookings.forEach(b => {
+                    const mapId = `${b.theaterId}_${b.movieId}`;
+                    if (!bookedSeatsMap[mapId]) bookedSeatsMap[mapId] = [];
+                    bookedSeatsMap[mapId] = [...bookedSeatsMap[mapId], ...b.seats];
+                });
+            } catch(e) { console.error("Could not fetch bookings map", e); }
+        }
+
+        function showOverlay(title, items, type) {
+            document.getElementById('selectionOverlay').style.display = 'block';
+            document.getElementById('overlayBg').style.display = 'block';
+            document.getElementById('selectionTitle').innerText = title;
+            
+            const searchInput = document.getElementById('theaterSearch');
+            searchInput.style.display = type === 'theater' ? 'block' : 'none';
+            searchInput.value = '';
+
+            const renderItems = (filter = '') => {
+                const sGrid = document.getElementById('selectionGrid');
+                sGrid.innerHTML = '';
+                const filtered = items.filter(item => 
+                    type === 'theater' ? item.name.toLowerCase().includes(filter.toLowerCase()) : true
+                );
+
+                if (type === 'theater') {
+                    sGrid.style.display = 'flex';
+                    sGrid.style.flexDirection = 'column';
+                    sGrid.style.gap = '1rem';
+                } else {
+                    sGrid.style.display = 'grid';
+                    sGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+                    sGrid.style.gap = '2rem';
+                }
+
+                filtered.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'movie-card glass animate';
+                    
+                    if (type === 'theater') {
+                        card.style.display = 'flex';
+                        card.style.justifyContent = 'space-between';
+                        card.style.alignItems = 'center';
+                        card.style.padding = '1.5rem 2.5rem';
+                        card.style.width = '100%';
+                        card.style.flexDirection = 'row';
+                        card.style.textAlign = 'left';
+                        
+                        const movieTime = currentMovie ? (currentMovie.description || '7:30 PM') : '7:30 PM';
+                        
+                        card.innerHTML = `
+                            <div>
+                                <h3 style="margin: 0; color: var(--primary); font-size: 1.4rem;">${item.name}</h3>
+                                <p style="margin: 0.3rem 0 0 0; font-size: 0.9rem; color: var(--text-muted);">${item.location} • Modern Amenities</p>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 2rem;">
+                                <div style="text-align: right; border-right: 1px solid var(--glass-border); padding-right: 2rem;">
+                                    <p style="margin: 0; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Next Show</p>
+                                    <p style="margin: 0; font-weight: 700; color: var(--secondary);">${movieTime}</p>
+                                </div>
+                                <button class="btn btn-primary" style="padding: 0.8rem 2rem; border-radius: 12px; font-weight: 600;">Select Theater</button>
+                            </div>
+                        `;
+                        card.onclick = () => finalizeSelection(currentMovie, item);
+                    } else {
+                        const mPrice = item.duration || 0;
+                        card.style.textAlign = 'center';
+                        card.style.padding = '1.5rem';
+                        card.innerHTML = `
+                            <img src="${item.posterUrl}" style="width: 100%; height: 200px; border-radius: 10px; object-fit: cover; margin-bottom: 1rem;" onerror="this.src='https://via.placeholder.com/300x450';">
+                            <h4 style="margin-bottom: 0.5rem;">${item.title}</h4>
+                            <p style="font-size: 0.8rem; color: var(--secondary);">₹${mPrice.toFixed(2)}</p>
+                            <button class="btn btn-primary" style="padding: 0.5rem 1rem; margin-top: 1rem;">Select</button>
+                        `;
+                        card.onclick = () => finalizeSelection(item, currentTheater);
+                    }
+                    sGrid.appendChild(card);
+                });
+            };
+
+            searchInput.oninput = (e) => renderItems(e.target.value);
+            renderItems();
+        }
+
+        function finalizeSelection(movie, theater) {
+            currentMovie = movie;
+            currentTheater = theater;
+            pricePerSeat = movie.duration || 0;
+            const movieTime = movie.description || '7:30 PM';
+            
+            document.getElementById('movieTitleDisplay').innerText = movie.title;
+            document.getElementById('movieImg').src = movie.posterUrl || 'https://via.placeholder.com/80x110';
+            document.getElementById('movieImg').onerror = function() { this.src='https://via.placeholder.com/80x110'; };
+            document.getElementById('theaterDisplay').innerText = `${movieTime} | ${theater.name}`;
+            document.getElementById('unitPriceDisplay').innerText = `₹${pricePerSeat.toFixed(2)}`;
+            
+            document.getElementById('selectionOverlay').style.display = 'none';
+            document.getElementById('overlayBg').style.display = 'none';
+            document.getElementById('mainBookingArea').style.opacity = '1';
+            document.getElementById('mainBookingArea').style.pointerEvents = 'auto';
+            
+            generateSeats(theater.id, theater.location || 120); // using location to store cap for now
+            updateSummary();
+        }
+
+        function generateSeats(theaterId, capacity) {
+            const grid = document.getElementById('seatsGrid');
+            grid.innerHTML = '';
+            
+            // Try to parse capacity in case it was stored as a string
+            const capNum = parseInt(capacity) || 120;
+            const cols = capNum >= 150 ? 15 : 12;
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            grid.style.maxWidth = capNum >= 150 ? '750px' : '600px';
+
+            const mapId = `${theaterId}_${currentMovie.id}`;
+            const bookedSeats = bookedSeatsMap[mapId] || [];
+
+            for(let i=0; i<capNum; i++) {
+                const seat = document.createElement('div');
+                seat.className = 'seat';
+                seat.dataset.index = i;
+                
+                if(bookedSeats.includes(i)) {
+                    seat.classList.add('booked');
+                } else {
+                    seat.onclick = () => {
+                        seat.classList.toggle('selected');
+                        selectedSeats = document.querySelectorAll('.seat.selected').length;
+                        updateSummary();
+                    };
+                }
+                grid.appendChild(seat);
+            }
+        }
+
+        function routeSelection() {
+            if (urlMovieId && urlTheaterId) {
+                const movie = movies.find(m => m.id == urlMovieId);
+                const theater = theaters.find(t => t.id == urlTheaterId);
+                if(movie && theater) finalizeSelection(movie, theater);
+            } else if (urlMovieId) {
+                currentMovie = movies.find(m => m.id == urlMovieId);
+                if (currentMovie) {
+                    const playingTheaters = theaters.filter(t => (theaterMovieMap[t.id] || []).includes(parseInt(urlMovieId)));
+                    showOverlay(`Where to watch ${currentMovie.title}?`, playingTheaters.length > 0 ? playingTheaters : theaters, 'theater');
+                }
+            } else if (urlTheaterId) {
+                currentTheater = theaters.find(t => t.id == urlTheaterId);
+                if (currentTheater) {
+                    const playingMovies = movies.filter(m => (theaterMovieMap[urlTheaterId] || []).includes(m.id));
+                    showOverlay(`What's playing at ${currentTheater.name}?`, playingMovies.length > 0 ? playingMovies : movies, 'movie');
+                }
+            } else {
+                location.href = 'dashboard.html';
+            }
+        }
+
+        function updateSummary() {
+            if (!currentMovie) return;
+            const seatCountDisplay = document.getElementById('seatCount');
+            const totalPriceDisplay = document.getElementById('totalPrice');
+            
+            seatCountDisplay.innerText = selectedSeats;
+            totalPriceDisplay.innerText = `₹${(selectedSeats * pricePerSeat).toFixed(2)}`;
+        }
+
+        async function processPayment(type) {
+            const selectedNodes = document.querySelectorAll('.seat.selected');
+            if (selectedNodes.length === 0) {
+                alert('Please select at least one seat.');
+                return;
+            }
+
+            const seatIndices = Array.from(selectedNodes).map(s => parseInt(s.dataset.index));
+            const total = selectedSeats * pricePerSeat;
+            const paid = type === 'full' ? total : (total * 0.25);
+            const userName = localStorage.getItem('userName') || 'User';
+
+            const bookingRequest = {
+                user: userName,
+                movie: currentMovie.title,
+                movieId: currentMovie.id,
+                theaterId: currentTheater.id,
+                seats: seatIndices,
+                total: total,
+                paid: paid,
+                type: type,
+                showTime: currentMovie.description || '7:30 PM'
+            };
+
+            try {
+                const response = await fetch('http://localhost:8080/api/bookings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(bookingRequest)
+                });
+                
+                if (response.ok) {
+                    alert(type === 'full' ? 'Payment Successful! Redirecting to My Bookings...' : 'Tickets Frozen! Please pay remaining amount at the theater.');
+                    location.href = 'dashboard.html?view=bookings';
+                } else {
+                    alert('Failed to process booking on server.');
+                }
+            } catch (err) {
+                alert('Connection error. Could not complete booking.');
+            }
+        }
+
+        // Initialize application
+        init();
+    </script>
+</body>
+</html>
