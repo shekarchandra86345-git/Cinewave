@@ -18,10 +18,10 @@ public class UserController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
+        String username = body.get("username").toLowerCase();
         String password = body.get("password");
         String email = body.getOrDefault("email", username + "@cinewave.com");
-        String name = body.getOrDefault("name", username);
+        String name = body.getOrDefault("name", body.get("username"));
 
         if (userRepository.findByUsername(username).isPresent()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Username already taken"));
@@ -39,12 +39,12 @@ public class UserController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> body) {
-        String username = body.get("username");
+        String username = body.get("username").toLowerCase();
         String password = body.get("password");
 
         // Admin hardcoded check
-        if ("Admin".equals(username) && "admin123".equals(password)) {
-            return ResponseEntity.ok(Map.of("message", "Login successful", "name", "Administrator", "username", "Admin", "role", "admin"));
+        if ("admin".equals(username) && "admin123".equals(password)) {
+            return ResponseEntity.ok(Map.of("message", "Login successful", "name", "Administrator", "username", "admin", "role", "admin"));
         }
 
         Optional<User> userOpt = userRepository.findByUsername(username);

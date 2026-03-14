@@ -80,21 +80,21 @@
 
         async function fetchMovies() {
             try {
-                const res = await fetch('http://localhost:8080/api/movies');
+                const res = await fetch('/api/movies');
                 movies = await res.json();
             } catch(e) { console.error("Could not fetch movies", e); }
         }
 
         async function fetchTheaters() {
             try {
-                const res = await fetch('http://localhost:8080/api/theaters');
+                const res = await fetch('/api/theaters');
                 theaters = await res.json();
             } catch(e) { console.error("Could not fetch theaters", e); }
         }
 
         async function fetchBookings() {
             try {
-                const res = await fetch('http://localhost:8080/api/bookings');
+                const res = await fetch('/api/bookings');
                 bookings = await res.json();
                 if (document.getElementById('myBookingsSect').style.display !== 'none') {
                     renderUserBookings();

@@ -126,21 +126,21 @@
 
         async function fetchMovies() {
             try {
-                const res = await fetch('http://localhost:8080/api/movies');
+                const res = await fetch('/api/movies');
                 movies = await res.json();
             } catch(e) { console.error("Could not fetch movies", e); }
         }
 
         async function fetchTheaters() {
             try {
-                const res = await fetch('http://localhost:8080/api/theaters');
+                const res = await fetch('/api/theaters');
                 theaters = await res.json();
             } catch(e) { console.error("Could not fetch theaters", e); }
         }
 
         async function fetchBookingsMap() {
             try {
-                const res = await fetch('http://localhost:8080/api/bookings');
+                const res = await fetch('/api/bookings');
                 const bookings = await res.json();
                 
                 // Reconstruct bookedSeatsMap from backend data
@@ -335,7 +335,7 @@
             };
 
             try {
-                const response = await fetch('http://localhost:8080/api/bookings', {
+                const response = await fetch('/api/bookings', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(bookingRequest)
